@@ -1,0 +1,192 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Attendance Notifier</title>
+<style>
+:root{--bg:#f5f6f8;--card:#fff;--text:#1c2330;--muted:#6b7585;--line:#e2e6ec;--accent:#2457d6;--red:#c93a3a;--redbg:#fdeaea;--green:#1f8a4c;--greenbg:#e5f6ec;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px);color-scheme:light}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#12161d;--card:#1b212b;--text:#e8ecf2;--muted:#98a2b3;--line:#2d3542;--accent:#6c93ff;--red:#ff7a7a;--redbg:#3a2020;--green:#4cc983;--greenbg:#173626;color-scheme:dark}}
+:root[data-theme="dark"]{--bg:#12161d;--card:#1b212b;--text:#e8ecf2;--muted:#98a2b3;--line:#2d3542;--accent:#6c93ff;--red:#ff7a7a;--redbg:#3a2020;--green:#4cc983;--greenbg:#173626;color-scheme:dark}
+html{scroll-padding-top:env(safe-area-inset-top,0px)}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--text);font:16px/1.45 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif}
+main{max-width:640px;margin:0 auto;padding:14px}
+h1{font-size:20px;margin:4px 0 2px}
+.sub{color:var(--muted);font-size:13px;margin:0 0 12px}
+.card{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:12px;margin-bottom:12px}
+label{display:block;font-size:12px;color:var(--muted);margin:8px 0 3px}
+input,textarea{width:100%;font:inherit;color:var(--text);background:var(--bg);border:1px solid var(--line);border-radius:8px;padding:9px}
+textarea{min-height:90px;resize:vertical}
+.row{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+.row>*{flex:1 1 120px}
+button,.btn{font:inherit;font-size:14px;border:1px solid var(--line);background:var(--card);color:var(--text);border-radius:8px;padding:8px 12px;cursor:pointer;text-decoration:none;text-align:center;display:inline-block}
+button.pri{background:var(--accent);border-color:var(--accent);color:#fff}
+.stu{border-top:1px solid var(--line);padding:10px 0}
+.stu:first-child{border-top:0}
+.name{font-weight:600}
+.meta{font-size:12px;color:var(--muted)}
+.acts{display:flex;gap:6px;margin-top:8px;flex-wrap:wrap}
+.acts button,.acts .btn{flex:1 1 70px}
+.p.on{background:var(--greenbg);border-color:var(--green);color:var(--green);font-weight:600}
+.a.on{background:var(--redbg);border-color:var(--red);color:var(--red);font-weight:600}
+.send{background:var(--accent);color:#fff;border-color:var(--accent)}
+.stats{display:flex;gap:8px;font-size:14px;margin-bottom:6px}
+.stats b{font-size:18px}
+.x{flex:0 0 auto!important;color:var(--muted)}
+details summary{cursor:pointer;font-weight:600}
+.note{font-size:12px;color:var(--muted)}
+</style>
+</head>
+<body>
+<main>
+<h1>📋 Attendance Notifier</h1>
+<p class="sub">Mark absent, then send the parent a WhatsApp or SMS in one tap.</p>
+
+<div class="card">
+<div class="row">
+<div><label for="date">Date</label><input type="date" id="date"></div>
+<div><label for="cls">Class</label><input id="cls" placeholder="e.g. 8-A"></div>
+</div>
+<details style="margin-top:10px"><summary>Settings and message templates</summary>
+<label for="school">School name</label><input id="school" placeholder="Your school name">
+<label for="teacher">Teacher name</label><input id="teacher" placeholder="Class teacher">
+<label for="tplW">WhatsApp message</label><textarea id="tplW"></textarea>
+<label for="tplS">SMS message</label><textarea id="tplS"></textarea>
+<p class="note">Placeholders: {parent} {student} {class} {date} {school} {teacher}</p>
+<button id="reset">Reset templates</button>
+</details>
+</div>
+
+<div class="card">
+<div class="stats"><span>Present <b id="cp">0</b></span><span>Absent <b id="ca">0</b></span><span>Unmarked <b id="cu">0</b></span></div>
+<div class="row"><button id="allp">Mark all present</button><button id="clr">Clear day</button></div>
+<div id="list"></div>
+</div>
+
+<div class="card">
+<details open><summary>Add student</summary>
+<label for="sn">Student name</label><input id="sn">
+<label for="pn">Parent name (optional)</label><input id="pn">
+<label for="ph">Parent mobile (10 digits)</label><input id="ph" type="tel" inputmode="numeric">
+<p></p><button class="pri" id="add">Add student</button>
+</details>
+</div>
+
+<div class="card">
+<details><summary>Backup, restore and reports</summary>
+<p class="note">Data is saved only in this browser on this device. Copy the backup text somewhere safe, or paste it here to restore. Format: name,parent,phone per line.</p>
+<textarea id="bk" placeholder="name,parent,phone"></textarea>
+<div class="row"><button id="exp">Show student list</button><button id="imp">Import from text</button><button id="rep">Today’s absentees</button></div>
+</details>
+</div>
+<div class="card">
+<details><summary>Monthly report</summary>
+<label for="mon">Month</label><input type="month" id="mon">
+<div style="overflow-x:auto;margin-top:8px"><table id="rt" style="width:100%;border-collapse:collapse;font-size:14px"></table></div>
+<p class="note">Counts only the days you marked Present or Absent. Past days are kept automatically.</p>
+<button id="rcopy">Copy report</button>
+</details>
+</div>
+
+<div class="card">
+<details><summary>Holiday and occasion messages</summary>
+<label>Choose a ready message</label>
+<div class="row"><button data-t="holiday">Holiday</button><button data-t="festival">Festival wishes</button><button data-t="meeting">Meeting</button><button data-t="custom">Custom</button></div>
+<label for="oname">Occasion name</label><input id="oname" placeholder="e.g. Diwali, Sankranti, Sports Day">
+<div class="row"><div><label for="odate">Date</label><input type="date" id="odate"></div><div><label for="oresume">Classes resume on</label><input type="date" id="oresume"></div></div>
+<label for="omsg">Message</label><textarea id="omsg" placeholder="Pick a ready message above or type your own"></textarea>
+<p class="note">Placeholders: {parent} {student} {class} {occasion} {date} {resume} {school} {teacher}</p>
+<button id="ocopy">Copy message (for a class WhatsApp group)</button>
+<p class="note">Or send to each parent below:</p>
+<div id="olist"></div>
+</details>
+</div>
+<p class="note">Student details never leave your device. Messages open in your own WhatsApp or SMS app, so you press Send yourself.</p>
+</main>
+<script>
+var KEY="attnotify.v1";
+var DEF={school:"",teacher:"",cls:"",students:[],att:{},
+tplW:"Hello {parent} 👋\n\nAttendance update from {school}.\n\nStudent: {student}\nClass: {class}\nDate: {date}\nStatus: Absent\n\nIf your child was unwell or there was an emergency, please share the reason or a leave note.\n\nThank you 🙏\n{teacher}",
+tplS:"Dear Parent, your ward {student} of Class {class} was ABSENT on {date}. Please send a leave note or contact the class teacher. - {school}"};
+var S=JSON.parse(JSON.stringify(DEF));
+try{var raw=localStorage.getItem(KEY);if(raw){var o=JSON.parse(raw);for(var k in o)S[k]=o[k];}}catch(e){}
+function save(){try{localStorage.setItem(KEY,JSON.stringify(S));}catch(e){}}
+var $=function(i){return document.getElementById(i)};
+var d=new Date();var date=d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0")+"-"+String(d.getDate()).padStart(2,"0");
+$("date").value=date;
+["school","teacher","cls","tplW","tplS"].forEach(function(k){
+ $(k).value=S[k]||"";
+ $(k).addEventListener("input",function(){S[k]=$(k).value;save();render();});
+});
+$("date").addEventListener("change",function(){date=$("date").value||date;render();});
+var SEP=/iPhone|iPad|iPod/i.test(navigator.userAgent)?"&":"?";
+function esc(t){return String(t).replace(/[&<>"]/g,function(c){return{"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]})}
+function fmt(x){var p=x.split("-");return p[2]+"-"+p[1]+"-"+p[0]}
+function num(p){var n=(p||"").replace(/\D/g,"");if(n.length===10)n="91"+n;return n}
+function build(t,s){var m={parent:s.parent||"Parent/Guardian",student:s.name,"class":S.cls||"",date:fmt(date),school:S.school||"School",teacher:S.teacher||""};
+ return t.replace(/\{(\w+)\}/g,function(a,k){return k in m?m[k]:a});}
+function render(){
+ var day=S.att[date]||{},p=0,a=0,h="";
+ S.students.forEach(function(s,i){
+  var st=day[s.id];if(st==="P")p++;if(st==="A")a++;
+  var n=num(s.phone),links="";
+  if(st==="A"){
+   links=n.length>=11?'<a class="btn send" target="_blank" rel="noopener" href="https://wa.me/'+n+'?text='+encodeURIComponent(build(S.tplW,s))+'">WhatsApp</a><a class="btn send" target="_blank" rel="noopener" href="sms:+'+n+SEP+'body='+encodeURIComponent(build(S.tplS,s))+'">SMS</a><button class="send" data-a="copy" data-i="'+i+'">Copy SMS</button>':'<span class="meta">Add a valid phone number to send</span>';
+  }
+  h+='<div class="stu"><div class="row" style="flex-wrap:nowrap"><div style="flex:1"><div class="name">'+esc(s.name)+'</div><div class="meta">'+esc(s.parent||"Parent")+" · "+esc(s.phone||"no phone")+'</div></div><button class="x" data-a="del" data-i="'+i+'" aria-label="Remove">✕</button></div>'+
+  '<div class="acts"><button class="p'+(st==="P"?" on":"")+'" data-a="P" data-i="'+i+'">Present</button><button class="a'+(st==="A"?" on":"")+'" data-a="A" data-i="'+i+'">Absent</button>'+links+'</div></div>';
+ });
+ $("list").innerHTML=h||'<p class="note">No students yet. Add one below.</p>';
+ $("cp").textContent=p;$("ca").textContent=a;$("cu").textContent=S.students.length-p-a;
+}
+$("list").addEventListener("click",function(e){
+ var b=e.target.closest("button");if(!b)return;
+ var s=S.students[+b.dataset.i],ac=b.dataset.a;
+ if(ac==="copy"){var t=build(S.tplS,s);try{navigator.clipboard.writeText(t).then(function(){alert("SMS text copied. Paste it in your messages app.")},function(){prompt("Copy this SMS text:",t)});}catch(e){prompt("Copy this SMS text:",t);}return;}
+ if(ac==="del"){if(confirm("Remove "+s.name+"?")){S.students.splice(+b.dataset.i,1);}}
+ else{S.att[date]=S.att[date]||{};S.att[date][s.id]=(S.att[date][s.id]===ac)?undefined:ac;}
+ save();render();
+});
+$("allp").onclick=function(){S.att[date]=S.att[date]||{};S.students.forEach(function(s){S.att[date][s.id]="P"});save();render();};
+$("clr").onclick=function(){if(confirm("Clear all marks for this date?")){delete S.att[date];save();render();}};
+$("add").onclick=function(){
+ var n=$("sn").value.trim();if(!n){alert("Enter the student name");return;}
+ S.students.push({id:Date.now()+""+Math.floor(Math.random()*1000),name:n,parent:$("pn").value.trim(),phone:$("ph").value.trim()});
+ $("sn").value=$("pn").value=$("ph").value="";save();render();$("sn").focus();
+};
+$("reset").onclick=function(){S.tplW=DEF.tplW;S.tplS=DEF.tplS;$("tplW").value=S.tplW;$("tplS").value=S.tplS;save();render();};
+$("exp").onclick=function(){$("bk").value=S.students.map(function(s){return[s.name,s.parent,s.phone].join(",")}).join("\n");};
+$("imp").onclick=function(){
+ var c=0;$("bk").value.split("\n").forEach(function(l){var f=l.split(",");if(f[0]&&f[0].trim()){S.students.push({id:Date.now()+""+c+Math.floor(Math.random()*1000),name:f[0].trim(),parent:(f[1]||"").trim(),phone:(f[2]||"").trim()});c++;}});
+ save();render();alert(c+" student(s) imported");
+};
+$("rep").onclick=function(){
+ var day=S.att[date]||{};var l=S.students.filter(function(s){return day[s.id]==="A"}).map(function(s){return s.name});
+ $("bk").value="Absent on "+fmt(date)+" ("+(S.cls||"class")+"): "+l.length+"\n"+l.join("\n");
+};
+var PRE={holiday:"Dear {parent}, {school} will be closed on {date} on account of {occasion}. Classes will resume on {resume}. - {school}",festival:"Dear {parent}, {school} wishes you and your family a very happy {occasion}! 🎉 - {school}",meeting:"Dear {parent}, you are invited to the {occasion} at {school} on {date}. Your presence is kindly requested. - {school}",custom:"Dear {parent}, "};
+function cp(t,m){try{navigator.clipboard.writeText(t).then(function(){alert(m)},function(){prompt("Copy this text:",t)});}catch(e){prompt("Copy this text:",t);}}
+function mrep(){var m=$("mon").value||date.slice(0,7),rows=[];
+ S.students.forEach(function(s){var p=0,a=0;for(var dt in S.att){if(dt.indexOf(m)===0){var v=S.att[dt][s.id];if(v==="P")p++;if(v==="A")a++;}}rows.push({n:s.name,p:p,a:a,pc:(p+a)?Math.round(p*100/(p+a)):null});});
+ return rows;}
+function rrender(){var r=mrep(),h='<tr style="text-align:left;color:var(--muted)"><th>Student</th><th>Present</th><th>Absent</th><th>%</th></tr>';
+ r.forEach(function(x){h+='<tr style="border-top:1px solid var(--line)"><td style="padding:6px 4px">'+esc(x.n)+'</td><td>'+x.p+'</td><td>'+x.a+'</td><td>'+(x.pc===null?"-":x.pc+"%")+'</td></tr>';});
+ $("rt").innerHTML=r.length?h:"<tr><td>No students yet</td></tr>";}
+function ofill(s){var m={parent:s.parent||"Parent/Guardian",occasion:$("oname").value||"the occasion",date:$("odate").value?fmt($("odate").value):"[date]",resume:$("oresume").value?fmt($("oresume").value):"[date]",school:S.school||"School",teacher:S.teacher||"",student:s.name,"class":S.cls||""};
+ return $("omsg").value.replace(/\{(\w+)\}/g,function(a,k){return k in m?m[k]:a});}
+function orender(){var h="";
+ S.students.forEach(function(s){var n=num(s.phone),t=ofill(s);
+  h+='<div class="stu"><div class="name">'+esc(s.name)+' <span class="meta">'+esc(s.parent||"Parent")+'</span></div>'+(n.length>=11&&t?'<div class="acts"><a class="btn send" target="_blank" rel="noopener" href="https://wa.me/'+n+'?text='+encodeURIComponent(t)+'">WhatsApp</a><a class="btn send" target="_blank" rel="noopener" href="sms:+'+n+SEP+'body='+encodeURIComponent(t)+'">SMS</a></div>':'<div class="meta">'+(t?"No valid phone":"Write a message first")+'</div>')+'</div>';});
+ $("olist").innerHTML=h;}
+var _r=render;render=function(){_r();rrender();orender();};
+$("mon").value=date.slice(0,7);
+$("mon").addEventListener("change",rrender);
+["oname","odate","oresume","omsg"].forEach(function(k){$(k).addEventListener("input",orender);});
+document.querySelectorAll("[data-t]").forEach(function(b){b.onclick=function(){$("omsg").value=PRE[b.dataset.t];orender();};});
+$("rcopy").onclick=function(){var t="Attendance report "+($("mon").value||date.slice(0,7))+(S.cls?" (Class "+S.cls+")":"")+"\n"+mrep().map(function(x){return x.n+": "+x.p+" present, "+x.a+" absent"+(x.pc===null?"":" ("+x.pc+"%)")}).join("\n");cp(t,"Report copied");};
+$("ocopy").onclick=function(){var t=ofill({name:"",parent:"Parents"});if(!t){alert("Write a message first");return;}cp(t,"Message copied. Paste it in your class WhatsApp group.");};
+render();
+</script>
+</body>
+</html>
